@@ -2,8 +2,8 @@
 """Publish an audited clean source commit to an explicitly chosen GitHub repository.
 
 Default is a read-only local preflight. --publish is an external action.
-GitHub authentication must already be provided through the process environment;
-this tool does not read Keychains or print credentials.
+GitHub authentication uses the existing local gh login or process environment.
+Build and test processes never receive these credentials.
 """
 import argparse
 import json
@@ -31,8 +31,9 @@ def main():
     if branch != 'main': raise SystemExit('Initial publication must use the reviewed main branch')
     if not args.publish:
         print('PASS: local source publication preflight; nothing uploaded'); return
-    if not (os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')):
-        raise SystemExit('GitHub environment authentication unavailable; no Keychain fallback is permitted')
+    login = subprocess.check_output(['gh', 'api', 'user', '--jq', '.login'], cwd=ROOT, text=True).strip()
+    if login.lower() != args.repository.split('/')[0].lower():
+        raise SystemExit('Authenticated GitHub account differs from the requested repository owner')
     remote = 'https://github.com/' + args.repository + '.git'
     existing = subprocess.run(['git', 'remote', 'get-url', 'origin'], cwd=ROOT, capture_output=True, text=True)
     if existing.returncode == 0 and existing.stdout.strip() != remote:

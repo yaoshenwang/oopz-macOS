@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 python3 tools/check_test_safety.py
+python3 tools/check_resources.py
 TASK_DIR=$(mktemp -d /tmp/oopz-fast.XXXXXX)
 trap 'rm -rf "$TASK_DIR"' EXIT
 python3 - "$TASK_DIR/pcm.swift" <<'PY'
@@ -44,4 +45,11 @@ source = Path('Sources/Oopz/Core/SessionStore.swift').read_text() + '\n' + Path(
 Path(sys.argv[1]).write_text(source)
 PYTEST
 OOPZ_DATA_DIR="$TASK_DIR/storage" swift "$TASK_DIR/storage.swift"
+python3 - "$TASK_DIR/web-login.swift" <<'PYTEST'
+from pathlib import Path
+import sys
+source = Path('Sources/Oopz/Core/WebLoginBridge.swift').read_text() + '\n' + Path('Tests/WebLoginBridgeChecks.swift').read_text()
+Path(sys.argv[1]).write_text(source)
+PYTEST
+swift "$TASK_DIR/web-login.swift"
 python3 -m unittest discover -s Tests -p 'test_*.py'

@@ -51,7 +51,8 @@ struct LoginView: View {
                     .padding(.bottom, 14)
             }
             if showWebLogin {
-                WebLoginSheet(onDone: { uid, jwt in
+                WebLoginSheet(onDone: { uid, jwt, key in
+                    SessionStore.savePrivateKey(key)
                     showWebLogin = false
                     booting = true
                     Task { await app.adoptWebSession(uid: uid, jwt: jwt) }
@@ -77,11 +78,6 @@ struct LoginView: View {
     }
 
     private func webLogin() {
-        app.ensurePrivateKey()
-        guard SessionStore.loadPrivateKey() != nil else {
-            app.showToast("尚未配置连接所需的协议认证材料，请参阅项目的开发配置说明。")
-            return
-        }
         booting = true
         Task {
             // 先静默尝试已有会话（用户可能已在官方网页/壳端登录过）
@@ -108,69 +104,57 @@ struct PrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// 官方网页登录窗（web.oopz.cn），成功后读 localStorage session__OopzSession
+/// Isolated official login page; native messages require a trusted main-frame origin.
 struct WebLoginSheet: NSViewRepresentable {
-    let onDone: (String, String) -> Void
+    let onDone: (String, String, Data) -> Void
     let onCancel: () -> Void
 
     func makeNSView(context: Context) -> NSView {
         let container = NSView(frame: .init(x: 0, y: 0, width: 420, height: 640))
-
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
+        configuration.userContentController.addUserScript(WKUserScript(source: WebLoginBridge.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        configuration.userContentController.add(context.coordinator, name: "oopzLogin")
         let webView = WKWebView(frame: container.bounds, configuration: configuration)
         webView.autoresizingMask = [.width, .height]
-        webView.navigationDelegate = context.coordinator
+        context.coordinator.webView = webView
         webView.load(URLRequest(url: URL(string: "https://web.oopz.cn/")!))
         container.addSubview(webView)
-        context.coordinator.webView = webView
-
         let closeButton = NSButton(title: "取消", target: context.coordinator, action: #selector(Coordinator.cancel))
         closeButton.bezelStyle = .rounded
-        closeButton.frame = NSRect(x: 420 - 74, y: 640 - 34, width: 60, height: 26)
+        closeButton.frame = NSRect(x: 346, y: 606, width: 60, height: 26)
         closeButton.autoresizingMask = [.minXMargin, .minYMargin]
         container.addSubview(closeButton)
         return container
     }
-
     func updateNSView(_ nsView: NSView, context: Context) {}
     func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        var parent: WebLoginSheet
-        var webView: WKWebView?
-
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.webView?.stopLoading()
+        coordinator.webView?.configuration.userContentController.removeScriptMessageHandler(forName: "oopzLogin")
+        coordinator.webView = nil
+    }
+    final class Coordinator: NSObject, WKScriptMessageHandler {
+        let parent: WebLoginSheet
+        weak var webView: WKWebView?
+        private var completed = false
         init(_ parent: WebLoginSheet) { self.parent = parent }
-
-        @objc func cancel() { parent.onCancel() }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            checkSession(webView)
-        }
-
-        private func checkSession(_ webView: WKWebView) {
-            let js = """
-            (function(){
-              try {
-                var raw = localStorage.getItem('session__OopzSession');
-                if (!raw) return '';
-                var o = JSON.parse(raw);
-                if (o && o.signature && o.uid) return o.uid + '|' + o.signature;
-              } catch(e) {}
-              return '';
-            })()
-            """
-            webView.evaluateJavaScript(js) { result, _ in
-                if let s = result as? String, s.contains("|") {
-                    let parts = s.components(separatedBy: "|")
-                    DispatchQueue.main.async { self.parent.onDone(parts[0], parts[1]) }
-                }
-            }
-        }
-
-        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            checkSession(webView)
-            decisionHandler(.allow)
+        @objc func cancel() { completed = true; parent.onCancel() }
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard !completed, message.name == "oopzLogin", message.webView === webView,
+                  message.frameInfo.isMainFrame,
+                  message.frameInfo.securityOrigin.host == "web.oopz.cn",
+                  message.frameInfo.securityOrigin.protocol == "https",
+                  [0, 443].contains(message.frameInfo.securityOrigin.port),
+                  let body = message.body as? [String: Any],
+                  let uid = body["uid"] as? String, !uid.isEmpty,
+                  uid.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }),
+                  let jwt = body["signature"] as? String, !jwt.isEmpty,
+                  let encoded = body["protocolKey"] as? String, encoded.count < 16384,
+                  let key = Data(base64Encoded: encoded),
+                  (try? OopzSign.secKey(fromDER: key)) != nil else { return }
+            completed = true
+            parent.onDone(uid, jwt, key)
         }
     }
 }

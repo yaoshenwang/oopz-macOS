@@ -79,7 +79,7 @@ def main():
         paths = source_paths() if not args.staged else list(filter(None, git('ls-files', '-z').decode().split('\0')))
         for name in paths:
             path = ROOT / name
-            hits = inspect_path(name)
+            hits = inspect_path(name) + inspect_bytes(name.encode(), terms)
             if args.staged:
                 data = git('show', ':' + name)
                 mode = git('ls-files', '-s', '--', name).decode().split()[0]
@@ -104,7 +104,7 @@ def main():
                     header, name = entry.split(b'\t', 1)
                     mode, kind, sha = header.split()
                     if kind != b'blob': failures.append((name.decode(), ['unexpected-git-object'])); continue
-                    pathhits = inspect_path(name.decode())
+                    pathhits = inspect_path(name.decode()) + inspect_bytes(name, terms)
                     if mode == b'120000': pathhits.append('source-symlink')
                     if pathhits: failures.append((commit[:8] + ':' + name.decode(), pathhits))
                     if sha in checked: continue

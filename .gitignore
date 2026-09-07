@@ -26,5 +26,3 @@ captures/
 *.dmg
 *.app/
 .private/
-Resources/AppIcon.icns
-Resources/sounds/*.wav

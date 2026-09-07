@@ -5,7 +5,7 @@ MODE=${1:---compile}
 case "$MODE" in --compile|--assemble|--local) ;; *) echo 'Usage: tools/build.sh [--compile|--assemble|--local]' >&2; exit 2;; esac
 python3 tools/audit_public.py
 ROOT=$(pwd -P)
-FLAGS=(-Xswiftc -debug-prefix-map -Xswiftc "$ROOT=/src/oopz-macOS" -Xswiftc -file-prefix-map -Xswiftc "$ROOT=/src/oopz-macOS")
+FLAGS=(-Xswiftc -gnone -Xswiftc -debug-prefix-map -Xswiftc "$ROOT=/src/oopz-macOS" -Xswiftc -file-prefix-map -Xswiftc "$ROOT=/src/oopz-macOS")
 if [ "$MODE" = --compile ]; then
   swift build --disable-automatic-resolution -c release "${FLAGS[@]}"
   exit 0
@@ -21,8 +21,7 @@ mkdir -p "build/$VER"
 if [ -e "build/$VER/release.json" ]; then echo 'Released version is immutable; bump the version.' >&2; exit 2; fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources/sounds"
-python3 tools/generate_assets.py
-swift tools/generate_icon.swift Resources/AppIcon.icns
+python3 tools/check_resources.py
 lipo -create .build/arm64-apple-macosx/release/Oopz .build/x86_64-apple-macosx/release/Oopz -output "$APP/Contents/MacOS/Oopz"
 lipo "$APP/Contents/MacOS/Oopz" -verify_arch arm64 x86_64
 strip -S "$APP/Contents/MacOS/Oopz"
@@ -30,11 +29,9 @@ cp Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 python3 - "$APP" <<'PY'
 from pathlib import Path
-import shutil, sys
-sys.path.insert(0, 'tools')
-from generate_assets import TONES
-for name in TONES:
-    shutil.copyfile(Path('Resources/sounds') / (name + '.wav'), Path(sys.argv[1]) / 'Contents/Resources/sounds' / (name + '.wav'))
+import json, shutil, sys
+for name in json.loads(Path('Resources/manifest.json').read_text())['files']:
+    shutil.copyfile(Path('Resources') / name, Path(sys.argv[1]) / 'Contents/Resources' / name)
 PY
 cp LICENSE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
 python3 tools/assemble_frameworks.py "$APP"

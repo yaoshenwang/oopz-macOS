@@ -1,0 +1,14 @@
+{
+  "source": "OOPZ official client resources; retained unchanged from the existing native client",
+  "files": {
+    "AppIcon.icns": "2ffd306890427a0f1e8450de2b1c61f93a9f0bb354b83a213deaa3f1b19916cb",
+    "sounds/cancel_headset_mute.wav": "9a981f2ce624a6a990772cfb6379009ae198cca47ac609bf4ccfb3e9b859b44c",
+    "sounds/cancel_microphone_mute.wav": "1456dbfa3cf4dc3abf15e36bc2b9a131ac378651007e66c4e61d5fb4e3a3ac1f",
+    "sounds/enter_voice.wav": "714aac445152638dd843dfdec25363b7e23d4b65f78a2956d5137dc2f65c5b58",
+    "sounds/exit_voice.wav": "0472ef639f4d5d30aa72d3cd418e850e774a05b297641a45f813fa694e3c7cca",
+    "sounds/headset_mute.wav": "1ced49fce958a238cc94c2fddeceb458ea29649f7c8b6fb74cbb1ae69935410e",
+    "sounds/microphone_mute.wav": "ffe02c4f924126e307c56273bd1713fdd01a2f0524fbae0648e7b91d2a9a1b77",
+    "sounds/person_enter_voice.wav": "b84e64cc1fa8aa0d3a8150165b62fe6ff4c85bcd2d6b92c966610c4358ab08a6",
+    "sounds/person_exit_voice.wav": "caaaab9034401d639fa71b98854e07a976c10fb6a80decc8f5fe89399a3b39a6"
+  }
+}

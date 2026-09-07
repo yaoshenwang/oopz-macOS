@@ -7,7 +7,7 @@ This is the standalone macOS client. Product source lives here; raw research and
 - Run tools/check_fast.sh while editing. Freeze source before the final build.
 - Version comes only from Info.plist. Bump for a release, not every PR. Preserve previous build/<version> directories.
 - CI compiles without a signing identity or account. Maintainer verification uses explicit Developer ID PEM signing. Never silently fall back from requested Developer ID signing.
-- Never query or read system Keychains, invoke `security`, export signing keys, or run public PR code on a maintainer machine automatically.
+- Build, signing and test code must never query or read system Keychains, invoke `security`, or export signing keys. Do not run public PR code on a maintainer machine automatically. The maintainer has separately authorized using the existing local GitHub CLI login for repository operations.
 - Signing keys, protocol authentication material and sessions stay outside this repository and all public artifacts. Public Developer ID signatures reveal the certificate's subject; they require the maintainer's explicit disclosure choice.
 - All automated integration runs are headless, single-instance, and confined to the current account's OWN EMPTY voice channel (`owner == uid`). Missing prerequisites fail. Never select by a person's or area's name.
 - Stop existing native instances before integration tests. Run the executable directly, never `open`, computer-use, real screen capture, or real microphone capture.

@@ -32,11 +32,11 @@ Developer ID 的签名者名称可从安装包提取。去掉 README 中的姓�
 
 首次创建远端前确定公开账号／组织；GitHub 仓库归属本身公开可见。本地初始提交采用项目集体署名和 noreply 地址，不导入旧历史。
 
-上传前执行 `python3 tools/audit_public.py --history`，有私有 denylist 时同时启用。不要在命令行、Issue 或聊天中发送访问 token。当前仓库没有预置远端，也不会自行读取系统钥匙串里的 GitHub 凭据。
+上传前执行 `python3 tools/audit_public.py --history`，有私有 denylist 时同时启用。不要在命令行、Issue 或聊天中发送访问 token。GitHub 操作使用维护者明确指定的本机 gh 登录；构建、签名和测试不读取 GitHub 凭据。
 
 仓库建立后，启用 Issues、GitHub 私密漏洞报告和自动删除合并分支；主分支要求 `Check` 状态通过，禁止 force push。先让第一次 Actions 实际运行成功，再设置对应必需检查，避免把空仓库锁死。
 
-`python3 tools/publish_source.py OWNER/REPOSITORY` 只做本地预检。确定公开身份并在受控进程环境提供 GitHub 认证后，添加 `--publish` 才会创建公开仓库、推送源码、等待真实 Actions 成功并设置保护。脚本要求 GH_TOKEN 或 GITHUB_TOKEN 已存在，不回退到系统钥匙串；不要把 token 写进仓库或发送到聊天中。
+`python3 tools/publish_source.py OWNER/REPOSITORY` 只做本地预检。确定公开身份并完成本机 gh 登录或环境变量认证后，添加 `--publish` 才会创建公开仓库、推送源码、等待真实 Actions 成功并设置保护。脚本先用 GitHub API 确認当前登录账号与目标仓库所有者一致；不要把 token 写进仓库或发送到聊天中。
 
 `./tools/export_source.sh` 可从干净提交生成仅含源码的 ZIP，供离线审查；不包含旧 Git 历史和被忽略文件。
 

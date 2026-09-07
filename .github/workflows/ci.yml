@@ -25,7 +25,7 @@ jobs:
         run: python3 tools/audit_public.py --history
       - name: Offline checks
         run: ./tools/check_fast.sh
-      - name: Prepare pinned dependencies and original assets
+      - name: Prepare pinned dependencies and official assets
         run: ./tools/bootstrap.sh
       - name: Compile without account or signing identity
         run: ./tools/build.sh --compile

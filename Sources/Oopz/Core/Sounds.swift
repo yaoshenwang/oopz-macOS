@@ -1,7 +1,7 @@
 import AppKit
 import AVFoundation
 
-/// 进/离场与开闭麦提示音（本项目生成的原创短音）
+/// 进/离场与开闭麦提示音（保留官方原始提示音）
 enum Sounds {
     private static var players: [String: AVAudioPlayer] = [:]
 

@@ -4,7 +4,7 @@
 
 | 时机 | 命令 | 能证明什么 |
 | --- | --- | --- |
-| 编辑／PR | tools/check_fast.sh | PCM 数值、权限状态机、日志隐私、协议规范化、畸形 DER、发布审计和验证记录约束 |
+| 编辑／PR | tools/check_fast.sh | PCM 数值、权限状态机、日志隐私、协议规范化、畸形 DER、官方登录脚本隔离、发布审计和验证记录约束 |
 | PR | tools/build.sh --compile | 当前架构源码可编译，不涉及产品登录或签名身份 |
 | 发版准备 | tools/verify.sh --media | universal 本地签名构建、真实协议检查和生产共享发布流程 |
 | 已有同一构建 | tools/verify.sh --media --existing | 不重建，先验证当前源文件和完整 App 文件清单是否匹配 |
@@ -27,3 +27,5 @@
 结果写入仓库外 JSON，包含与 validation.json 相同的 `sourceCommit`、`sha256`，以及 `fullscreen`、`stop`、`window`、`late_join`、`system_audio` 五个字段。实际通过才填写字符串 `pass`。不得由自动化臆造验收结果。
 
 外部服务失败时记录为失败／未验收。不要为了绿色状态跳过测试，也不自动操作官方 Web 页面。
+
+首次登录衔接：用户手动在官方登录页完成验证，确认原生主界面进入成功；自动检查仅验证脚本行为和来源约束，不代操作验证码。

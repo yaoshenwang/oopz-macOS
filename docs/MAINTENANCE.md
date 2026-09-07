@@ -1,6 +1,6 @@
 # 维护模式与参考
 
-采用一个 main 分支、短分支 PR、一个无凭据 CI 和维护者本地发布流程。日常不维护第二套私有产品源码，不建立服务端部署、自动登录机器人、夜间真机测试或庞大的操作系统矩阵。
+采用一个 main 分支、短分支 PR、一个无凭据 PR CI 和标签触发的签名公证发布流程。日常不维护第二套私有产品源码，不建立服务端部署、自动登录机器人、夜间真机测试或庞大的操作系统矩阵。
 
 本次整理参考了以下公开项目／文档（2026-09-07 查阅）：
 
@@ -10,7 +10,7 @@
 - [GitHub macOS runner image](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md)：明确选择已提供的 Xcode 26.0.1，避免默认 Xcode 漂移。
 - [Apple notarization tooling](https://developer.apple.com/documentation/technotes/tn3147-migrating-to-the-latest-notarization-tool)：使用 notarytool 与直接 p8 文件参数，不读取钥匙串 profile。
 
-依赖按需升级；升级时同时更新 SDK 校验清单、Package.resolved、第三方声明和相关检查。先不增加自动依赖 PR 噪声或每次构建的二进制上传。
+依赖按需升级；升级时同时更新 SDK 校验清单、Package.resolved、第三方声明和相关检查。不增加自动依赖 PR 噪声；只在版本标签上公开安装包。
 
 ## 发布前人工审查
 

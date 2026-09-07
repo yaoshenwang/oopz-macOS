@@ -4,7 +4,7 @@ OOPZ 的 macOS 社区客户端，使用 Swift、AppKit / SwiftUI 和 Agora macOS
 
 支持 macOS 14 及以上、Apple Silicon 与 Intel。工程保留网页登录、域和频道、语音、文字及图片消息、屏幕共享和三级音量等实现。
 
-**当前是源码迁移版本，尚未公开分发安装包。** 本仓库不内嵌生产协议认证材料、用户会话或维护者签名身份。首次使用通过独立的官方网页登录页获取当前会话与页面使用的协议认证材料，仅保存在本机；该衔接的真实首次登录仍待人工验收。高级配置见 [开发配置](docs/DEVELOPMENT.md)。编译和离线测试不需要账号。
+**安装包见 [GitHub Releases](https://github.com/yaoshenwang/oopz-macOS/releases)。** 每个版本标签自动构建 Apple Silicon / Intel 通用 DMG 和 ZIP，完成 Developer ID 签名及 Apple 公证后发布。下载 DMG，将 Oopz 拖入 Applications 即可。 本仓库不内嵌生产协议认证材料、用户会话或维护者签名私钥。首次使用通过独立的官方网页登录页获取当前会话与页面使用的协议认证材料，仅保存在本机；该衔接的真实首次登录仍待人工验收。高级配置见 [开发配置](docs/DEVELOPMENT.md)。编译和离线测试不需要账号。
 
 ## 开发
 

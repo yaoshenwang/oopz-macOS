@@ -40,7 +40,9 @@ def extra_terms():
     return [x.lower().encode() for x in terms]
 
 def inspect_bytes(data, terms=(), *, binary=False):
-    hits = [name for name, pattern in PATTERNS.items() if pattern.search(data)]
+    hits = [name for name, pattern in PATTERNS.items()
+            if any(name != 'personal-email' or match.group() != b'noreply@github.com'
+                   for match in pattern.finditer(data))]
     if any(term in data.lower() for term in terms): hits.append('private-local-denylist')
     if not binary:
         # Also catch private keys split across adjacent base64 Swift/JS string literals.

@@ -1,0 +1,93 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require release commit on main and audit history
+        run: |
+          git merge-base --is-ancestor HEAD origin/main
+          python3 tools/audit_public.py --history
+      - run: ./tools/check_fast.sh
+      - run: ./tools/bootstrap.sh
+      - run: ./tools/build.sh --assemble
+      - run: python3 tools/ci_release.py prepare --tag "$RELEASE_TAG"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unsigned-app
+          path: .build/release-input/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+  sign:
+    needs: build
+    runs-on: macos-15
+    environment: release
+    timeout-minutes: 90
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
+      RELEASE_TAG: ${{ github.ref_name }}
+      RELEASE_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: unsigned-app
+          path: .build/release-input
+      - name: Prepare checksum-pinned signer before materializing credentials
+        run: python3 tools/fetch_signer.py
+      - name: Sign, notarize and verify installers
+        env:
+          MACOS_SIGNING_KEY: ${{ secrets.MACOS_SIGNING_KEY }}
+          MACOS_CERTIFICATE_CHAIN: ${{ secrets.MACOS_CERTIFICATE_CHAIN }}
+          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+          NOTARY_KEY: ${{ secrets.NOTARY_KEY }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+        run: python3 tools/ci_release.py sign --tag "$RELEASE_TAG" --commit "$RELEASE_COMMIT" --input .build/release-input --output .build/distribution
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signed-installers
+          path: .build/distribution/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+  publish:
+    needs: sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: signed-installers
+          path: .build/distribution
+      - name: Publish verified assets atomically through a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: python3 tools/publish_release.py --repository "$GH_REPO" --tag "$RELEASE_TAG" --commit "$RELEASE_COMMIT" --directory .build/distribution

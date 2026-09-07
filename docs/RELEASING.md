@@ -1,6 +1,26 @@
 # 签名与发布
 
-## 本机配置
+## 自动发布（默认）
+
+修改版本与 CHANGELOG，经过 PR / CI 合入 main，然后推送对应版本标签：
+
+```sh
+git switch main
+git pull --ff-only
+VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Info.plist)
+git tag "v$VERSION"
+git push origin "v$VERSION"
+```
+
+Release workflow 自动执行三个独立任务：无凭据构建和审计；Developer ID 文件签名、App / DMG 公证和挂载启动验证；发布 DMG、ZIP、SHA256SUMS、release.json 到 GitHub Release。只有最后一步有 contents: write 权限。版本与标签必须一致，提交必须已合入 main。失败不会公开不完整草稿。
+
+签名使用 release environment 的六项加密 Secrets：MACOS_SIGNING_KEY、MACOS_CERTIFICATE_CHAIN、MACOS_TEAM_ID、NOTARY_KEY、NOTARY_KEY_ID、NOTARY_ISSUER。环境仅允许 v* 标签；普通 PR 没有凭据。文件只在临时目录以 0600 权限创建，签名密钥在公证后删除；API 私钥在 DMG 公证后删除；不缓存、不上传私有日志，不使用系统钥匙串。维护者已允许公开证书主体身份。
+
+同一版本的已公开资产禁止覆盖。临时失败可在 Actions 中重跑失败任务；签名已成功时只重跑 publish，可复用该次签名产物。修复已发布版本应升新版本。公证队列最长每次等待 40 分钟，超过时失败，不无限等待。
+
+正式安装包始终要求 Developer ID 和 Apple 公证，不提供自动降级签名。云端只证明离线、签名、公证和安装结构检查，真实官方 Web 及听感验收仍单列。
+
+## 本机配置（可选本地发布）
 
 把 JSON 配置放在仓库外、权限设为 0600，通过 `OOPZ_SIGNING_CONFIG` 指定。字段如下；具体姓名、Team ID、密钥 ID 和路径不要写入本文或任何跟踪文件。
 
@@ -17,7 +37,7 @@
 
 Developer ID 的签名者名称可从安装包提取。去掉 README 中的姓名不能消除这一信息。要求隐藏个人身份时，需要先确定合适的分发签名身份；不要把个人签名产物公开上传。
 
-## 发布步骤
+## 本地发布步骤
 
 1. 修改 Info.plist 的版本只通过 `tools/bump.sh`；更新 CHANGELOG，提交确定的发布源码。工作区必须干净。
 2. `./tools/verify.sh --media`：构建一次并验证。build.json 绑定源码清单和完整 App；validation.json 绑定同一文件清单。

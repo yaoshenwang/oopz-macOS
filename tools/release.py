@@ -37,7 +37,7 @@ def check(app, acceptance):
     validate_receipts(build, validation, tree(app), snapshot(), acceptance)
     return build, validation
 
-def notarize(path, config, statefile, log):
+def notarize(path, config, statefile, log, timeout=600):
     args = ['--key', str(file(config, 'notary_key')), '--key-id', config['notary_key_id'], '--issuer', config['notary_issuer']]
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     state = json.loads(statefile.read_text()) if statefile.exists() else {}
@@ -47,7 +47,7 @@ def notarize(path, config, statefile, log):
         response = json.loads(result.stdout)
         if not response.get('id'): raise ValueError('No notarization submission ID; inspect private logs before retrying')
         state = {'id': response['id'], 'sha256': digest}; write(statefile, state)
-    deadline = time.monotonic() + 600
+    deadline = time.monotonic() + timeout
     while True:
         result = subprocess.run(['xcrun', 'notarytool', 'info', state['id'], *args, '--output-format', 'json'],
                                 stdout=subprocess.PIPE, stderr=log, check=True)

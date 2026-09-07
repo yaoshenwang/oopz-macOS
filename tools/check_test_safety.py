@@ -25,7 +25,13 @@ app = (root / 'Sources/Oopz/Core/AppModel.swift').read_text()
 if 'func log(_ m: DiagnosticMessage)' not in app: errors.append('Unstructured diagnostic input')
 for workflow in (root / '.github/workflows').glob('*.yml'):
     text = workflow.read_text()
-    if any(x in text for x in ['pull_request_target:', 'secrets.', 'self-hosted']): errors.append('Privileged public CI')
+    if any(x in text for x in ['pull_request_target:', 'self-hosted']): errors.append('Privileged public CI')
+    secret_names = set(re.findall(r'secrets\.([A-Z_]+)', text))
+    allowed = {'MACOS_SIGNING_KEY', 'MACOS_CERTIFICATE_CHAIN', 'MACOS_TEAM_ID', 'NOTARY_KEY', 'NOTARY_KEY_ID', 'NOTARY_ISSUER'} if workflow.name == 'release.yml' else set()
+    if not secret_names <= allowed: errors.append('Unexpected workflow secret')
+    if secret_names:
+        if 'environment: release' not in text or "startsWith(github.ref, 'refs/tags/v')" not in text or 'pull_request:' in text:
+            errors.append('Release secrets require a tag-only protected environment')
     for line in text.splitlines():
         if 'uses:' in line and not re.search(r'@[a-f0-9]{40}\b', line): errors.append('Unpinned action')
 if errors: raise SystemExit('\n'.join('FAIL: ' + x for x in errors))

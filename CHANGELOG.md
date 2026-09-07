@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.3.7 — signed automatic releases
+
+- 推送与 Info.plist 一致的版本标签后，自动构建 universal App、Developer ID 签名、Apple 公证并发布 DMG / ZIP。
+- 构建、签名公证、发布分为独立任务，Apple 私钥仅用于受保护的 release 环境，不进入 PR、缓存或公开产物。
+- 发布前验证 DMG 挂载内容、两种架构签名、公证票据及无头启动；附带 SHA256SUMS。
+- 保留官方图标与提示音；自动检查不替代真实首次登录、共享画面和听感验收。
+
 ## 0.3.6 — standalone source migration
 
 - 将 macOS 客户端整理为独立 SwiftPM 仓库，保留现有产品功能实现。

@@ -6,9 +6,9 @@ This is the standalone macOS client. Product source lives here; raw research and
 - Use short branches, normally `codex/<change>`. Keep one product source tree.
 - Run tools/check_fast.sh while editing. Freeze source before the final build.
 - Version comes only from Info.plist. Bump for a release, not every PR. Preserve previous build/<version> directories.
-- CI compiles without a signing identity or account. Maintainer verification uses explicit Developer ID PEM signing. Never silently fall back from requested Developer ID signing.
+- PR CI builds without a signing identity or account. Tagged releases use separate build, signing/notarization and publication jobs. Maintainer verification uses explicit Developer ID PEM signing. Never silently fall back from requested Developer ID signing.
 - Build, signing and test code must never query or read system Keychains, invoke `security`, or export signing keys. Do not run public PR code on a maintainer machine automatically. The maintainer has separately authorized using the existing local GitHub CLI login for repository operations.
-- Signing keys, protocol authentication material and sessions stay outside this repository and all public artifacts. Public Developer ID signatures reveal the certificate's subject; they require the maintainer's explicit disclosure choice.
+- Signing keys, protocol authentication material and sessions stay outside this repository and all public artifacts. The maintainer explicitly permits publishing their Developer ID certificate identity. Private keys and API credentials must remain secret. Release environment secrets are authorized for tag-triggered signing/notarization only.
 - All automated integration runs are headless, single-instance, and confined to the current account's OWN EMPTY voice channel (`owner == uid`). Missing prerequisites fail. Never select by a person's or area's name.
 - Stop existing native instances before integration tests. Run the executable directly, never `open`, computer-use, real screen capture, or real microphone capture.
 - Headless audio stays disabled. Synthetic audio must never reach a playback or SDK publishing path. Publisher checks use synthetic video only.

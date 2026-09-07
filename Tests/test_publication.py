@@ -30,6 +30,8 @@ class PublicationTests(unittest.TestCase):
         self.assertTrue(inspect_path('captures/test.txt'))
         self.assertTrue(inspect_path('session.json'))
         self.assertFalse(inspect_bytes(b'contributors@users.noreply.github.com'))
+        self.assertFalse(inspect_bytes(b'noreply@github.com'))
+        self.assertIn('personal-email', inspect_bytes(b'person' + b'@github.com'))
     def test_resource_and_symlink_mutation_changes_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); resource = root / 'resource'; resource.write_bytes(b'original')

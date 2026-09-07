@@ -1,14 +1,22 @@
 import importlib.util
+import hashlib
 from pathlib import Path
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
-from audit_public import inspect_bytes, inspect_path
+from audit_public import inspect_bytes, inspect_path, filter_vendor_metadata
 from manifest import tree
 
 class PublicationTests(unittest.TestCase):
+    def test_vendor_metadata_exception_requires_exact_bytes_and_never_hides_secrets(self):
+        data = b'upstream binary fixture'
+        entry = {'sha256': hashlib.sha256(data).hexdigest(), 'upstream_metadata': ['personal-email', 'private-local-denylist', 'jwt']}
+        hits = ['personal-email', 'private-local-denylist', 'jwt']
+        self.assertEqual(filter_vendor_metadata(data, hits, entry), ['private-local-denylist', 'jwt'])
+        self.assertEqual(filter_vendor_metadata(data + b'changed', hits, entry), hits)
+        self.assertEqual(filter_vendor_metadata(data, hits, None), hits)
     def test_secret_shapes_and_split_keys(self):
         self.assertIn('jwt', inspect_bytes(b'eyJ' + b'a' * 12 + b'.' + b'b' * 12 + b'.' + b'c' * 12))
         pem = b'-----BEGIN ' + b'PRIVATE KEY-----'

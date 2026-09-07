@@ -5,6 +5,7 @@ Local reviewers can provide additional private strings in an OUTSIDE-repository 
 through OOPZ_AUDIT_DENYLIST. That file and its contents must never be uploaded.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -56,6 +57,14 @@ def inspect_path(name):
         return ['private-config']
     return []
 
+def filter_vendor_metadata(data, hits, entry):
+    # Only byte-identical upstream files may carry upstream attribution/build paths.
+    # A filename alone never grants an exception, and secrets/denylist always fail.
+    if entry and hashlib.sha256(data).hexdigest() == entry.get('sha256'):
+        allowed = set(entry.get('upstream_metadata', [])) & {'absolute-home-path', 'personal-email'}
+        return [hit for hit in hits if hit not in allowed]
+    return hits
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--history', action='store_true')
@@ -65,6 +74,7 @@ def main():
     terms, failures, count = extra_terms(), [], 0
     if args.artifact:
         root = args.artifact.resolve()
+        vendor = json.loads((ROOT / 'tools/vendor_metadata.json').read_text())['files']
         if not root.is_dir(): raise SystemExit('Artifact must be an unpacked application directory')
         for path in root.rglob('*'):
             if path.is_symlink():
@@ -72,7 +82,8 @@ def main():
                 continue
             if not path.is_file(): continue
             count += 1
-            hits = inspect_bytes(path.read_bytes(), terms, binary=True)
+            data = path.read_bytes()
+            hits = filter_vendor_metadata(data, inspect_bytes(data, terms, binary=True), vendor.get(str(path.relative_to(root))))
             if path.suffix in PRIVATE_EXTENSIONS or path.name == 'session.json': hits.append('private-file-type')
             if hits: failures.append((str(path.relative_to(root)), hits))
     else:

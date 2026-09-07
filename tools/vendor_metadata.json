@@ -1,0 +1,36 @@
+{
+  "description": "Exact original vendor binaries only. Allows their pre-existing build paths and attribution emails; never suppresses credentials or the private local denylist. SDK archives are independently checksum verified before extraction.",
+  "files": {
+    "Contents/Frameworks/aosl.framework/Versions/A/aosl": {
+      "sha256": "6fdba5e151feae44cc640023066e30ef11d943fbb9394a92d6490c66b7a00a9b",
+      "upstream_metadata": [
+        "absolute-home-path"
+      ]
+    },
+    "Contents/Frameworks/video_dec.framework/Versions/A/video_dec": {
+      "sha256": "f4e0b718bb8764e5972998fcf17e7e6b49d907561c232da6f5ef7e940421ca24",
+      "upstream_metadata": [
+        "absolute-home-path"
+      ]
+    },
+    "Contents/Frameworks/Agoraffmpeg.framework/Versions/A/Agoraffmpeg": {
+      "sha256": "c6490d372d38eff56753af124853b295d989240195a14b0790f8d21ee1833f39",
+      "upstream_metadata": [
+        "personal-email"
+      ]
+    },
+    "Contents/Frameworks/AgoraRtcKit.framework/Versions/A/AgoraRtcKit": {
+      "sha256": "eebe3f84677c6aef28638a31283106fe970e70ef5407b324618e4e938f17e144",
+      "upstream_metadata": [
+        "absolute-home-path",
+        "personal-email"
+      ]
+    },
+    "Contents/Frameworks/AgoraScreenCaptureExtension.framework/Versions/A/AgoraScreenCaptureExtension": {
+      "sha256": "f3fe791b820d0851dc15223bffe9070b947d2095e68269cb94422bfb4296b857",
+      "upstream_metadata": [
+        "absolute-home-path"
+      ]
+    }
+  }
+}

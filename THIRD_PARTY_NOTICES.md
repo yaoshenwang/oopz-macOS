@@ -20,3 +20,5 @@ Relevant upstream references:
 - [apple-platform-rs / rcodesign](https://github.com/indygreg/apple-platform-rs)
 
 The SDK wrapper repository's MIT file alone is not a determination that every downloaded binary has the same license. The ffmpeg, fdk-aac and SoundTouch related binaries require review of the vendor's actual build notices before public binary distribution. This source migration does not certify that review as complete. Only the listed icon and notification sounds are committed as official resources. Original vendor application bundles, research captures and account data are excluded.
+
+Artifact auditing recognizes five byte-identical vendor binaries by SHA-256 in tools/vendor_metadata.json. Their existing upstream attribution emails and build paths are not maintainer identity. Any changed binary loses this exception; credential checks and private denylist matches are never exempted. Development headers and module maps are omitted from assembled runtime frameworks.

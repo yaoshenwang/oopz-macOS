@@ -1,0 +1,27 @@
+name: Bug report
+description: 报告可复现的问题，请勿上传个人数据或原始日志
+body:
+  - type: input
+    id: version
+    attributes:
+      label: App 版本、macOS 版本和芯片
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 预期与实际表现
+      description: 不要包含账号、JWT、邀请链接、真实聊天或带签名的 URL。
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: 已尝试的检查
+      description: 诊断文件请先在本机检查，必要时通过私下渠道提供。

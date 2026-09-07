@@ -1,0 +1,14 @@
+name: Feature request
+description: 描述需要解决的使用场景
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景和期望行为
+    validations:
+      required: true
+  - type: textarea
+    id: reference
+    attributes:
+      label: 官方端是否有对应功能
+      description: 可提供不含个人信息的说明或链接。

@@ -1,0 +1,30 @@
+{
+  "version": "4.6.2",
+  "source": "https://github.com/AgoraIO/AgoraRtcEngine_macOS/blob/7f82061cb6fd5d975c4f75ffb9e22cf0bbe6fdaf/Package.swift",
+  "frameworks": {
+    "AgoraRtcKit": {
+      "url": "https://download.agora.io/swiftpm/AgoraRtcEngine_macOS/4.6.2/AgoraRtcKit.xcframework.zip",
+      "sha256": "189aaee1d4cb8f3567dc4251098f77e84c2d2fb4b39067c2a6731aae2174b31a"
+    },
+    "Agorafdkaac": {
+      "url": "https://download.agora.io/swiftpm/AgoraRtcEngine_macOS/4.6.2/Agorafdkaac.xcframework.zip",
+      "sha256": "eb1235366e9b952a71163afeada2fe350f60dca050e866f0b5c1bb0411640ca8"
+    },
+    "Agoraffmpeg": {
+      "url": "https://download.agora.io/swiftpm/AgoraRtcEngine_macOS/4.6.2/Agoraffmpeg.xcframework.zip",
+      "sha256": "ca8fd0f7d008d2398c3616e28dce66b78ab23beb2d1cfcf7d29a5a0d3b7105e3"
+    },
+    "AgoraSoundTouch": {
+      "url": "https://download.agora.io/swiftpm/AgoraRtcEngine_macOS/4.6.2/AgoraSoundTouch.xcframework.zip",
+      "sha256": "fa35927bef8acb16caa774e7c3a2fcc2b27292a03f99a6fa792f28bd90a297f4"
+    },
+    "video_dec": {
+      "url": "https://download.agora.io/swiftpm/AgoraRtcEngine_macOS/4.6.2/video_dec.xcframework.zip",
+      "sha256": "2fabeed4a4dca155cce6ce796e9d561ec9b76c8e273b247260c40301402615b5"
+    },
+    "AgoraScreenCaptureExtension": {
+      "url": "https://download.agora.io/swiftpm/AgoraRtcEngine_macOS/4.6.2/AgoraScreenCaptureExtension.xcframework.zip",
+      "sha256": "3bf04710d5574a921062e58943c06f8efca5d3552976ce27423160c5d1302558"
+    }
+  }
+}

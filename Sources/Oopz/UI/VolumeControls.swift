@@ -96,9 +96,10 @@ struct HoverVolumeSlider<Trigger: View>: View {
 struct InlineVolumeSlider: View {
     @Binding var volume: Int
     var width: CGFloat = 170
+    var maximum: Double = 400
 
     var body: some View {
-        VolumeSliderBar(volume: $volume)
+        VolumeSliderBar(volume: $volume, maximum: maximum)
             .frame(width: width)
     }
 }
@@ -106,6 +107,7 @@ struct InlineVolumeSlider: View {
 /// 滑条主体：喇叭（点击静音/恢复）+ 0–400 滑条 + 数值
 private struct VolumeSliderBar: View {
     @Binding var volume: Int
+    var maximum: Double = 400
     @State private var lastNonZero: Int = 100
 
     var body: some View {
@@ -132,7 +134,7 @@ private struct VolumeSliderBar: View {
                     let v = Int(newValue.rounded())
                     if v != 0 { lastNonZero = v }
                     volume = v
-                }), in: 0...400, step: 5)
+                }), in: 0...maximum, step: 5)
                 .controlSize(.small)
                 .tint(Theme.accent)
 

@@ -34,6 +34,7 @@ enum Verification {
             checks.append(["name": name, "pass": ok]); print("\(ok ? "✅" : "❌") \(name)")
         }
         for (name, passed) in await SmokeTest.permissionChecks() { check(name, passed) }
+        for (name, passed) in SmokeTest.shareAudioChecks() { check(name, passed) }
         check("PCM 已知采样值与缓冲寿命", PCMConverter.selfTest())
         check("HTTP 200 业务拒绝不会当成功", (try? OopzAPI.validateEnvelope(["status": false])) == nil)
         check("缺失业务状态不会当成功", (try? OopzAPI.validateEnvelope(["data": true])) == nil)

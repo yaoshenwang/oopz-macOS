@@ -53,3 +53,24 @@ Path(sys.argv[1]).write_text(source)
 PYTEST
 swift "$TASK_DIR/web-login.swift"
 python3 -m unittest discover -s Tests -p 'test_*.py'
+
+# Only construct SDK configuration objects. Never create an engine or open audio devices.
+python3 - "$TASK_DIR/share_audio.swift" <<'PYTEST'
+from pathlib import Path
+import sys
+source = ''
+for name in ('ShareAudioRouting', 'ShareAudioChecks'):
+    source += Path(f'Sources/Oopz/Core/{name}.swift').read_text() + '\n'
+source += '\nlet checks = ShareAudioChecks.run()\nfor (name, ok) in checks { print("\\(ok ? "PASS" : "FAIL"): \\(name)") }\nprecondition(checks.allSatisfy { $0.1 })\n'
+Path(sys.argv[1]).write_text(source)
+PYTEST
+SDK_DIR="$PWD/Vendor/AgoraRtcKit.xcframework/macos-arm64_x86_64"
+AOSL_DIR="$PWD/.build/artifacts/agorainfra_macos/aosl/aosl.xcframework/macos-arm64_x86_64"
+SDK_LINK_ARGS=()
+for TASK_FRAMEWORK in "$PWD"/Vendor/*.xcframework/macos*/*.framework; do
+    SDK_LINK_ARGS+=(-Xlinker -rpath -Xlinker "$(dirname "$TASK_FRAMEWORK")")
+done
+swiftc -F "$SDK_DIR" -F "$AOSL_DIR" -framework AgoraRtcKit \
+    "${SDK_LINK_ARGS[@]}" -Xlinker -rpath -Xlinker "$AOSL_DIR" \
+    "$TASK_DIR/share_audio.swift" -o "$TASK_DIR/share_audio"
+"$TASK_DIR/share_audio"

@@ -908,6 +908,12 @@ final class VoiceState: ObservableObject {
     @Published var shareActive = false
     @Published var sharePhase: SharePhase = .idle
     @Published var shareError: String?
+    @Published var shareAudioAvailable = false
+    @Published var shareAudioEnabled = false
+    @Published var shareAudioVolume = 100
+    /// Shared media volume is separate from a member's voice volume (current voice session).
+    @Published var shareListenVolumes: [String: Int] = [:]
+    @Published var shareAudioError: String?
 
     var watchRequestId = UUID()
     @Published var watchingUid: UInt32?          // 正在观看的远端共享流 uid
@@ -937,6 +943,11 @@ final class VoiceState: ObservableObject {
         shareActive = false
         sharePhase = .idle
         shareError = nil
+        shareAudioAvailable = false
+        shareAudioEnabled = false
+        shareAudioVolume = 100
+        shareListenVolumes = [:]
+        shareAudioError = nil
         agoraRoomId = ""
         agoraToken = ""
         agoraUid = 0

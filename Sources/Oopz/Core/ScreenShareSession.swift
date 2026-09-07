@@ -25,6 +25,7 @@ final class ScreenShareSession {
     private var watchGeneration = UUID()
     private var leaveTask: Task<Void, Never>?
     private var watching: UInt32?
+    private var subscribedAudio: UInt32?
     private(set) var roomId = ""
     private(set) var publishConfirmed = false
     private(set) var encoded = false
@@ -56,16 +57,13 @@ final class ScreenShareSession {
     private func options(publish: Bool) -> AgoraRtcChannelMediaOptions {
         let o = AgoraRtcChannelMediaOptions()
         o.clientRoleType = .broadcaster
-        o.publishMicrophoneTrack = false
+        ShareAudioRouting.configure(o, publish: publish, track: audioTrack,
+            enabled: app.voice.shareAudioEnabled, headless: RunMode.headless)
         o.publishCameraTrack = false
         o.publishScreenTrack = publish && customTrack == nil
         o.publishCustomVideoTrack = publish && customTrack != nil
         if let customTrack { o.customVideoTrackId = Int(customTrack) }
-        o.publishCustomAudioTrack = publish && audioTrack >= 0 && !RunMode.headless
-        if audioTrack >= 0 { o.publishCustomAudioTrackId = audioTrack }
-        o.autoSubscribeAudio = watching != nil && !RunMode.headless && !app.voice.headsetMuted
         o.autoSubscribeVideo = watching != nil
-        o.enableAudioRecordingOrPlayout = !RunMode.headless
         return o
     }
 
@@ -77,6 +75,9 @@ final class ScreenShareSession {
               app.voice.joined, app.voice.agoraUid != 0 else { return false }
         let id = UUID(); generation = id
         app.voice.shareError = nil; failure = nil
+        app.voice.shareAudioError = nil
+        app.voice.shareAudioAvailable = false
+        app.voice.shareAudioEnabled = false
         encoded = false; publishConfirmed = false
         let c = Context(area: app.voice.areaId, channel: app.voice.channelId,
                         dimensions: dimension, userId: app.api.session?.uid ?? "", fps: fps, uid: app.voice.agoraUid)
@@ -84,6 +85,9 @@ final class ScreenShareSession {
         phase(.preparing)
         let task = Task { @MainActor in
             do {
+                guard windowId == nil || !systemAudio else {
+                    throw OopzError.apiError("WINDOW_AUDIO", "窗口共享暂不支持声音，请选择整个屏幕")
+                }
                 // Never obtain a voice token here or manufacture a room suffix.
                 let credentials = try await app.api.screenShareCredentials(channel: c.channel,
                     sending: true, dimension: c.dimensions, fps: c.fps)
@@ -118,11 +122,25 @@ final class ScreenShareSession {
                     guard rc == 0 else { throw OopzError.apiError("CAPTURE_\(rc)", "屏幕采集启动失败（\(rc)），请重试") }
                 }
                 if systemAudio && !RunMode.headless {
-                    let cfg = AgoraAudioTrackConfig()
-                    cfg.enableLocalPlayback = false; cfg.enableAudioProcessing = false
-                    audioTrack = Int(engine.createCustomAudioTrack(.mixable, config: cfg))
+                    audioTrack = Int(engine.createCustomAudioTrack(ShareAudioRouting.trackType,
+                        config: ShareAudioRouting.trackConfig()))
                     guard audioTrack >= 0 else { throw OopzError.apiError("AUDIO_TRACK", "无法创建共享声音轨") }
+                    let volumeRC = engine.adjustCustomAudioPublishVolume(audioTrack, volume: app.voice.shareAudioVolume)
+                    guard volumeRC == 0 else { throw OopzError.apiError("AUDIO_VOLUME", "无法设置共享声音音量（\(volumeRC)）") }
                     let track = audioTrack
+                    audio.setMuted(false)
+                    audio.onFailure = { [weak self] error in
+                        guard let self, self.generation == id else { return }
+                        guard self.app.voice.shareActive else {
+                            self.failure = "共享声音采集在准备阶段中断"
+                            return
+                        }
+                        self.setSystemAudioEnabled(false)
+                        self.app.voice.shareAudioAvailable = false
+                        self.app.voice.shareAudioError = "共享声音采集中断，请停止后重新共享"
+                        self.app.log("share audio capture stopped: \(error.localizedDescription)")
+                        self.app.showToast("共享声音采集中断，语音和画面继续")
+                    }
                     audio.onSampleBuffer = { sample in
                         guard let converted = PCMConverter.int16Stereo48k(from: sample) else { return }
                         converted.data.withUnsafeBytes { bytes in
@@ -133,6 +151,9 @@ final class ScreenShareSession {
                     }
                     try await audio.start(displayID: displayId ?? CGMainDisplayID())
                     try check(id)
+                    app.voice.shareAudioAvailable = true
+                    app.voice.shareAudioEnabled = true
+                    app.log("share audio: direct track; localPlayback=false; microphone=false; excludeOwnAudio=true")
                 }
                 phase(.publishing)
                 if connection?.channelId != credentials.roomId {
@@ -141,7 +162,7 @@ final class ScreenShareSession {
                 }
                 if connection == nil {
                     let conn = AgoraRtcConnection(channelId: credentials.roomId, localUid: Int(c.uid))
-                    let d = ShareRTCDelegate(owner: self, id: id)
+                    let d = ShareRTCDelegate(owner: self, id: id, connection: conn)
                     connection = conn; delegate = d; roomId = credentials.roomId
                     let rc = engine.joinChannelEx(byToken: credentials.signPid, connection: conn,
                         delegate: d, mediaOptions: options(publish: true), joinSuccess: nil)
@@ -150,6 +171,7 @@ final class ScreenShareSession {
                     delegate?.id = id
                     let rc = engine.updateChannelEx(with: options(publish: true), connection: connection!)
                     guard rc == 0 else { throw OopzError.apiError("SHARE_UPDATE_\(rc)", "无法发布共享流") }
+                    applyPlaybackState()
                 }
                 injector?.start(); injector?.setVideo(true)
                 try await wait(id) { self.delegate?.joined == true && self.publishConfirmed && (pattern || self.encoded) }
@@ -202,8 +224,12 @@ final class ScreenShareSession {
         let engine = try? app.agora.testEngine()
         injector?.stop(); injector = nil
         await audio.stopAndWait()
+        audio.onFailure = nil
+        app.voice.shareAudioEnabled = false
+        app.voice.shareAudioAvailable = false
         engine?.stopScreenCapture()
         if let connection { _ = engine?.updateChannelEx(with: options(publish: false), connection: connection) }
+        applyPlaybackState()
         if let c = context {
             var closed = false
             for _ in 0..<2 {
@@ -229,6 +255,7 @@ final class ScreenShareSession {
         guard let c = connection else { return }
         let retainedDelegate = delegate
         connection = nil; delegate = nil; roomId = ""
+        subscribedAudio = nil
         guard let engine = try? app.agora.testEngine() else { return }
         let task = Task { @MainActor in
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -263,7 +290,7 @@ final class ScreenShareSession {
             watching = uid
             if connection == nil {
                 let c = AgoraRtcConnection(channelId: credentials.roomId, localUid: Int(app.voice.agoraUid))
-                let d = ShareRTCDelegate(owner: self, id: generation)
+                let d = ShareRTCDelegate(owner: self, id: generation, connection: c)
                 connection = c; delegate = d; roomId = credentials.roomId
                 let rc = engine.joinChannelEx(byToken: credentials.signPid, connection: c, delegate: d,
                     mediaOptions: options(publish: false), joinSuccess: nil)
@@ -285,10 +312,69 @@ final class ScreenShareSession {
     }
     func applyPlaybackState() {
         guard let connection, let engine = try? app.agora.testEngine() else { return }
-        _ = engine.muteAllRemoteAudioStreamsEx(RunMode.headless || app.voice.headsetMuted, connection: connection)
-        if let watching {
-            _ = engine.adjustUserPlaybackSignalVolumeEx(UInt(watching), volume: app.voice.userVolumes[String(watching)] ?? 100, connection: connection)
+        let target = RunMode.headless || app.voice.headsetMuted ? nil : watching
+        if let previous = subscribedAudio, previous != target {
+            _ = engine.muteRemoteAudioStreamEx(UInt(previous), mute: true, connection: connection)
+            subscribedAudio = nil
         }
+        if let target {
+            let volumeRC = engine.adjustUserPlaybackSignalVolumeEx(UInt(target),
+                volume: app.voice.shareListenVolumes[String(target)] ?? 100, connection: connection)
+            let subscribeRC = engine.muteRemoteAudioStreamEx(UInt(target), mute: false, connection: connection)
+            subscribedAudio = target
+            if volumeRC != 0 || subscribeRC != 0 {
+                app.log("share audio receive: volumeRC=\(volumeRC) subscribeRC=\(subscribeRC)")
+            }
+        }
+    }
+
+    func connectionJoined(_ source: AgoraRtcConnection) {
+        guard let connection, connection === source else { return }
+        app.agora.applySavedVolumes()
+        applyPlaybackState()
+    }
+
+    func remoteJoined(_ source: AgoraRtcConnection) {
+        guard let connection, connection === source else { return }
+        applyPlaybackState()
+    }
+
+    /// Pause sends without touching microphone capture, voice mute, or screen video.
+    func setSystemAudioEnabled(_ enabled: Bool) {
+        guard audioTrack >= 0, let connection, let engine = try? app.agora.testEngine() else { return }
+        guard !enabled || (app.voice.shareAudioAvailable && audio.running && app.voice.shareActive) else { return }
+        let previous = app.voice.shareAudioEnabled
+        if !enabled { audio.setMuted(true) }
+        app.voice.shareAudioEnabled = enabled
+        let rc = engine.updateChannelEx(with: options(publish: app.voice.shareActive), connection: connection)
+        if rc != 0 {
+            // Failed disable still blocks PCM. Never accidentally resume sending.
+            app.voice.shareAudioEnabled = enabled ? previous : false
+            audio.setMuted(!app.voice.shareAudioEnabled)
+            app.voice.shareAudioError = "共享声音设置失败（\(rc)），请重试"
+            return
+        }
+        audio.setMuted(!enabled)
+        app.voice.shareAudioError = nil
+        applyPlaybackState()
+        app.log("share audio enabled=\(enabled)")
+    }
+
+    func setSystemAudioVolume(_ value: Int) {
+        guard audioTrack >= 0, let engine = try? app.agora.testEngine() else { return }
+        let volume = min(100, max(0, value))
+        let rc = engine.adjustCustomAudioPublishVolume(audioTrack, volume: volume)
+        guard rc == 0 else {
+            app.voice.shareAudioError = "共享声音音量设置失败（\(rc)）"
+            return
+        }
+        app.voice.shareAudioVolume = volume
+        app.voice.shareAudioError = nil
+    }
+
+    func setListenVolume(uid: UInt32, volume: Int) {
+        app.voice.shareListenVolumes[String(uid)] = min(400, max(0, volume))
+        applyPlaybackState()
     }
     func closeWatch(uid: UInt32? = nil) async {
         if let uid, let watching, uid != watching { return }
@@ -298,8 +384,12 @@ final class ScreenShareSession {
             _ = engine.setupRemoteVideoEx(canvas, connection: connection)
         }
         watching = nil; app.voice.watchingUid = nil
+        applyPlaybackState()
         if context == nil { await leaveConnection() }
-        else if let connection { _ = try? app.agora.testEngine().updateChannelEx(with: options(publish: true), connection: connection) }
+        else if let connection {
+            _ = try? app.agora.testEngine().updateChannelEx(with: options(publish: true), connection: connection)
+            applyPlaybackState()
+        }
     }
     func localVideo(state: AgoraVideoLocalState, source: AgoraVideoSourceType, id: UUID? = nil) {
         if let id, id != generation { return }
@@ -341,9 +431,18 @@ private final class ShareRTCDelegate: NSObject, AgoraRtcEngineDelegate {
     weak var owner: ScreenShareSession?
     var id: UUID
     @MainActor var joined = false
-    init(owner: ScreenShareSession, id: UUID) { self.owner = owner; self.id = id }
+    let connection: AgoraRtcConnection
+    init(owner: ScreenShareSession, id: UUID, connection: AgoraRtcConnection) {
+        self.owner = owner; self.id = id; self.connection = connection
+    }
     func rtcEngine(_ engine: AgoraRtcEngineKit, didJoinChannel channel: String, withUid uid: UInt, elapsed: Int) {
-        Task { @MainActor in self.joined = true }
+        Task { @MainActor in
+            self.joined = true
+            self.owner?.connectionJoined(self.connection)
+        }
+    }
+    func rtcEngine(_ engine: AgoraRtcEngineKit, didJoinedOfUid uid: UInt, elapsed: Int) {
+        Task { @MainActor in self.owner?.remoteJoined(self.connection) }
     }
     func rtcEngine(_ engine: AgoraRtcEngineKit, didVideoPublishStateChange channel: String,
                    sourceType: AgoraVideoSourceType, oldState: AgoraStreamPublishState,

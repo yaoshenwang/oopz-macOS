@@ -7,6 +7,7 @@ enum SmokeTest {
     }
     @MainActor
     static func permissionChecks() async -> [(String, Bool)] { await PermissionChecks.run() }
+    static func shareAudioChecks() -> [(String, Bool)] { ShareAudioChecks.run() }
     @MainActor
     static func runHeadless(app: AppModel) async {
         let args = CommandLine.arguments

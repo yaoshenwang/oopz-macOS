@@ -2,6 +2,9 @@
 
 This is the standalone macOS client. Product source lives here; raw research and personal operations data do not.
 
+- This repository is the sole location for future macOS product development, testing and builds. The earlier research checkout is archival; do not synchronize entire source trees, embedded authentication material or build/signing scripts from it. Audio isolation and controls were ported here for 0.4.0; maintain the implementation here from now on.
+- Screen-share audio uses a Direct custom track with microphone publishing and local playback disabled. Keep voice and shared-media volumes separate; subscribe only to the selected sharing UID. Never make window sharing silently capture full-desktop audio. True microphone/Direct coexistence and echo listening checks remain manual; see docs/AUDIO.md.
+
 - Read README.md, CONTRIBUTING.md and docs/TESTING.md before changing behavior.
 - Use short branches, normally `codex/<change>`. Keep one product source tree.
 - Run tools/check_fast.sh while editing. Freeze source before the final build.

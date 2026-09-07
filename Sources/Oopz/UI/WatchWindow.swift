@@ -86,7 +86,7 @@ final class WatchWindowController: NSObject, NSWindowDelegate {
     }
 }
 
-/// 观看窗底部条：共享者信息 + 共享音量内联滑条（共享者的系统声音走其 uid 音频轨，调单人音量即调共享音量）。
+/// 观看窗底部条：共享声音只调共享连接，不改变共享者的语音音量。
 /// 用内联而非悬停浮层：上方是 Agora 渲染 NSView，SwiftUI 浮层会被它压住。
 struct WatchFooterBar: View {
     @ObservedObject var app: AppModel
@@ -99,10 +99,15 @@ struct WatchFooterBar: View {
                 .font(.system(size: 11))
                 .foregroundColor(Theme.textSecondary)
             InlineVolumeSlider(volume: Binding(
-                get: { app.voice.userVolumes[String(uid)] ?? 100 },
-                set: { app.agora.setUserVolume(agoraUid: uid, volume: $0) }
+                get: { app.voice.shareListenVolumes[String(uid)] ?? 100 },
+                set: { app.sharing.setListenVolume(uid: uid, volume: $0) }
             ))
             .help("共享音量（0–400，100 为原始）")
+            Button(app.voice.micMuted ? "开麦" : "闭麦") {
+                app.agora.setMic(muted: !app.voice.micMuted)
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(app.voice.micMuted ? Theme.danger : Theme.speaking)
             Spacer()
             Text("按 Esc 或关闭窗口退出观看")
                 .font(.system(size: 10))

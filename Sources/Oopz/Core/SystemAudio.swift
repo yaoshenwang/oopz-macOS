@@ -8,6 +8,7 @@ final class SystemAudioCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
     private let queue = DispatchQueue(label: "oopz.sysaudio")
     private let samples = Samples()
     private var generation = UUID()
+    var onFailure: ((Error) -> Void)?
     var onSampleBuffer: ((CMSampleBuffer) -> Void)? {
         get { samples.lock.withLock { samples.callback } }
         set { samples.lock.withLock { samples.callback = newValue } }
@@ -18,13 +19,22 @@ final class SystemAudioCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
         let lock = NSLock()
         var callback: ((CMSampleBuffer) -> Void)?
         var running = false
+        var muted = false
         func deliver(_ sample: CMSampleBuffer) {
             // Holding the lock also drains any in-flight push before its Agora track is destroyed.
-            lock.withLock { if running { callback?(sample) } }
+            lock.withLock { if running && !muted { callback?(sample) } }
         }
     }
 
+    func setMuted(_ muted: Bool) {
+        samples.lock.withLock { samples.muted = muted }
+    }
+
     func start(displayID: CGDirectDisplayID) async throws {
+        guard !RunMode.headless else {
+            throw NSError(domain: "oopz.sysaudio", code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "无头验证禁止采集真实系统声音"])
+        }
         let callback = onSampleBuffer
         await stopAndWait()
         onSampleBuffer = callback
@@ -34,11 +44,11 @@ final class SystemAudioCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
         guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
             throw NSError(domain: "oopz.sysaudio", code: 1, userInfo: [NSLocalizedDescriptionKey: "未找到对应显示器"])
         }
-        let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
-        let cfg = SCStreamConfiguration()
-        cfg.capturesAudio = true
-        cfg.excludesCurrentProcessAudio = true
-        cfg.sampleRate = 48000; cfg.channelCount = 2
+        let ownApps = content.applications.filter {
+            $0.processID == ProcessInfo.processInfo.processIdentifier || $0.bundleIdentifier == Bundle.main.bundleIdentifier
+        }
+        let filter = SCContentFilter(display: display, excludingApplications: ownApps, exceptingWindows: [])
+        let cfg = ShareAudioRouting.captureConfig()
         let source = SCStream(filter: filter, configuration: cfg, delegate: self)
         try source.addStreamOutput(self, type: .audio, sampleHandlerQueue: queue)
         stream = source
@@ -67,6 +77,7 @@ final class SystemAudioCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
         Task { @MainActor in
             guard self.stream === stream else { return }
             self.samples.lock.withLock { self.samples.running = false }
+            self.onFailure?(error)
         }
     }
 }

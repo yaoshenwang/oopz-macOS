@@ -8,6 +8,7 @@ struct VoiceRoomSection: View {
     @ObservedObject var app: AppModel
     let channel: Channel
     @Binding var showPicker: Bool
+    @State private var showAudio = false
 
     private var members: [VoiceMember] {
         app.channelVoiceMembers[channel.id] ?? []
@@ -53,6 +54,15 @@ struct VoiceRoomSection: View {
                     .accessibilityLabel("加入语音频道 \(channel.name)")
                     .disabled(app.voice.joining)
                 } else {
+                    Button { showAudio.toggle() } label: {
+                        Label("音频", systemImage: "slider.horizontal.3")
+                            .font(.system(size: 12))
+                            .foregroundColor(Theme.textPrimary)
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.card))
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showAudio) { ShareAudioControls(app: app).frame(width: 340) }
                     // 屏幕共享入口（官方 Windows 客户端同款能力；Web 端被门控故截图里没有）
                     Button {
                         if app.voice.sharePhase.busy {
@@ -172,7 +182,7 @@ struct VoiceRoomSection: View {
     }
 }
 
-/// 官方同款语音成员大卡片；悬停非自己成员时浮出单人音量滑条（官方 Web 同款，含共享者的系统声音）
+/// 官方同款语音成员大卡片；滑条只控制成员语音，共享声音在观看窗独立控制。
 struct VoiceMemberCard: View {
     @ObservedObject var app: AppModel
     let member: VoiceMember
@@ -359,7 +369,8 @@ struct SharePickerView: View {
                     }
                     .toggleStyle(.switch)
                     .controlSize(.mini)
-                    .help(tab == 0 ? "同时共享系统声音（自动排除语音回环）" : "窗口共享暂不支持声音，请切换到「整个屏幕」")
+                    .disabled(tab != 0)
+                    .help(tab == 0 ? "共享其他应用的系统声音；麦克风仍由语音频道控制" : "窗口共享暂不支持声音，请切换到「整个屏幕」")
 
                     Spacer()
 
@@ -411,6 +422,7 @@ struct SharePickerView: View {
             .padding(12)
         }
         .background(Theme.panel)
+        .onChange(of: tab) { _, value in if value != 0 { shareSystemAudio = false } }
         .task {
             await app.loadShareOptions()
             // 预选默认：清晰度取 isDefault，帧率取 isDefault
@@ -437,7 +449,7 @@ struct SharePickerView: View {
         Task { @MainActor in
             if await app.agora.startScreenShare(displayId: displayId, windowId: windowId,
                                                 dimensions: dims, frameRate: selFps,
-                                                systemAudio: shareSystemAudio, dimensionValue: selDims) {
+                                                systemAudio: windowId == nil && shareSystemAudio, dimensionValue: selDims) {
                 dismiss()
             }
         }

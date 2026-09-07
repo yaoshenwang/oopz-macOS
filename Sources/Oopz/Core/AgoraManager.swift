@@ -88,6 +88,8 @@ final class AgoraManager: NSObject, AgoraRtcEngineDelegate {
         options.enableAudioRecordingOrPlayout = !RunMode.headless
         options.autoSubscribeVideo = false
         options.publishCameraTrack = false
+        options.publishScreenCaptureAudio = false
+        options.publishMediaPlayerAudioTrack = false
         if watchOnly {
             options.publishMicrophoneTrack = false
             options.publishScreenTrack = false

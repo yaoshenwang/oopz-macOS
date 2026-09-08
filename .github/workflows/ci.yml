@@ -24,10 +24,10 @@ jobs:
           persist-credentials: false
       - name: Audit source and history
         run: python3 tools/audit_public.py --history
-      - name: Offline checks
-        run: ./tools/check_fast.sh
       - name: Prepare pinned dependencies and official assets
         run: ./tools/bootstrap.sh
+      - name: Offline checks
+        run: ./tools/check_fast.sh
       - name: Build and audit universal release input without credentials
         run: |
           ./tools/build.sh --assemble

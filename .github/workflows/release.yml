@@ -40,8 +40,8 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write('channel=' + selected + '\n')
           PY
-      - run: ./tools/check_fast.sh
       - run: ./tools/bootstrap.sh
+      - run: ./tools/check_fast.sh
       - run: ./tools/build.sh --assemble
       - run: python3 tools/ci_release.py prepare --tag "$RELEASE_TAG"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -1,4 +1,5 @@
 name: Release
+run-name: Installers · ${{ github.ref_name }}
 on:
   push:
     tags: ['v*']
@@ -13,6 +14,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-15
     timeout-minutes: 20
+    outputs:
+      channel: ${{ steps.identity.outputs.channel }}
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
       RELEASE_TAG: ${{ github.ref_name }}
@@ -25,6 +28,18 @@ jobs:
         run: |
           git merge-base --is-ancestor HEAD origin/main
           python3 tools/audit_public.py --history
+      - name: Validate tag and select distribution channel
+        id: identity
+        run: |
+          python3 - <<'PY'
+          import os, plistlib, sys
+          sys.path.insert(0, 'tools')
+          from build_channel import channel
+          version = plistlib.load(open('Info.plist', 'rb'))['CFBundleShortVersionString']
+          selected = channel(os.environ['RELEASE_TAG'], version, os.environ['GITHUB_SHA'])
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('channel=' + selected + '\n')
+          PY
       - run: ./tools/check_fast.sh
       - run: ./tools/bootstrap.sh
       - run: ./tools/build.sh --assemble
@@ -65,14 +80,22 @@ jobs:
           NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
         run: python3 tools/ci_release.py sign --tag "$RELEASE_TAG" --commit "$RELEASE_COMMIT" --input .build/release-input --output .build/distribution
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        id: installers
         with:
-          name: signed-installers
+          name: ${{ needs.build.outputs.channel == 'dev' && format('Oopz-{0}-universal', github.ref_name) || 'signed-installers' }}
           path: .build/distribution/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: ${{ needs.build.outputs.channel == 'dev' && 90 || 7 }}
           compression-level: 0
+      - name: Link verified installers
+        env:
+          ARTIFACT_URL: ${{ steps.installers.outputs.artifact-url }}
+          BUILD_CHANNEL: ${{ needs.build.outputs.channel }}
+        run: |
+          printf '### %s installers: %s\n\n[Download DMG / ZIP](%s)\n\nDeveloper ID signed and notarized. Manual audio and screen-share acceptance remains separate.\n' "$BUILD_CHANNEL" "$RELEASE_TAG" "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
   publish:
-    needs: sign
+    needs: [build, sign]
+    if: needs.build.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     permissions:
       contents: write

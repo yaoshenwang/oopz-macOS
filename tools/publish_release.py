@@ -7,17 +7,28 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+from build_channel import channel
+from audit_public import inspect_bytes
 
 def run(args, **kwargs): return subprocess.run(args, check=True, **kwargs)
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 
-def validate(folder, tag, commit):
-    if not re.fullmatch(r'v\d+\.\d+\.\d+', tag): raise ValueError('Invalid version tag')
+def validate(folder, tag, commit, *, allow_dev=False):
+    match = re.match(r'^v(\d+\.\d+\.\d+)(?:-|$)', tag)
+    if not match: raise ValueError('Invalid version tag')
+    selected_channel = channel(tag, match[1], commit)
+    if selected_channel == 'dev' and not allow_dev:
+        raise ValueError('Dev builds must never be published as GitHub Releases')
     version = tag[1:]
     expected = {f'Oopz-{version}-universal.dmg', f'Oopz-{version}-universal.zip', 'release.json', 'SHA256SUMS', 'RELEASE_NOTES.md'}
     if {p.name for p in folder.iterdir()} != expected or any(p.is_symlink() or not p.is_file() for p in folder.iterdir()):
         raise ValueError('Unexpected release files')
     metadata = json.loads((folder / 'release.json').read_text())
+    if metadata.get('channel', 'stable') != selected_channel:
+        raise ValueError('Distribution channel mismatch')
+    for name in ('release.json', 'SHA256SUMS', 'RELEASE_NOTES.md'):
+        if inspect_bytes((folder / name).read_bytes()):
+            raise ValueError('Prohibited data in distribution metadata')
     if metadata.get('version') != version or metadata.get('sourceCommit') != commit or metadata.get('notarized') is not True or metadata.get('signing') != 'Developer ID':
         raise ValueError('Release manifest does not match the signed version')
     files = {p.name: sha(p) for p in folder.iterdir() if p.name not in ('SHA256SUMS', 'RELEASE_NOTES.md')}

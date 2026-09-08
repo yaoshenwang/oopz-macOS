@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- main 更新自动生成可追溯的 dev 内测标签，复用 Developer ID 签名与 Apple 公证流程，在 Actions 提供保留 90 天的 universal DMG / ZIP；不创建正式 Release。
+- 内测分发副本的“关于”显示完整构建标识；沿用现有应用身份、本机数据与权限。
+
 ## 0.4.0 — screen-share audio isolation and controls
 
 - 将共享系统声音从 Mixable 迁为 Direct 自定义轨，明确关闭共享连接的麦克风及其他音频来源；针对开启电脑声音后共享者人声重复的现象。实际回声及实体麦克风并行仍待双端人工验收。

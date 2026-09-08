@@ -7,6 +7,8 @@
 3. 运行 `./tools/build.sh --compile`，更新受影响的说明。
 4. PR 描述触发条件、行为变化、检查结果，以及需要人工确认的项目。
 
+合入 main 后 Dev workflow 自动请求内测安装包，Release workflow 复用签名、公证与安装检查，成功后只上传 Actions artifact。PR 本身无签名凭据。日常不改 Info.plist，也不创建正式版本标签；需要重建当前 main 时运行 `gh workflow run dev.yml --ref main`。
+
 CI 必须通过。涉及真实协议、共享、音频或权限的变更，由维护者执行相应本地集成检查；贡献者不需要维护者账号、证书或私钥。不要为了让 PR 通过而放宽“自有空频道”和音频隔离规则。
 
 版本只在发版准备时通过 `tools/bump.sh` 升级，普通 PR 不修改版本号。把用户可见变化写入 CHANGELOG 的 Unreleased 区域。

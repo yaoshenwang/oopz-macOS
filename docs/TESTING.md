@@ -7,6 +7,7 @@
 | 编辑／PR | tools/check_fast.sh | PCM 数值、权限状态机、日志隐私、协议规范化、畸形 DER、官方登录脚本隔离、发布审计、验证记录约束和共享音频配置 |
 | PR | tools/build.sh --assemble + ci_release.py prepare | 双架构构建、产物审计、发布输入校验，不涉及产品登录或签名身份 |
 | 版本标签 | Release workflow | Developer ID 双架构签名、Apple 公证、真实 DMG 挂载内容与无头启动 |
+| main 更新／Dev 手动请求 | Dev → 标签上的 Release workflow | 相同签名公证检查；仅 Actions 内测安装包，publish 必须跳过 |
 | 发版准备 | tools/verify.sh --media | universal 本地签名构建、真实协议检查和生产共享发布流程 |
 | 已有同一构建 | tools/verify.sh --media --existing | 不重建，先验证当前源文件和完整 App 文件清单是否匹配 |
 | 共享／声音发布前 | 官方 Web 人工验收 | 对端实际画面和听感；不能用本地 PASS 替代 |

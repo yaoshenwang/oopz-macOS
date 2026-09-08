@@ -10,7 +10,14 @@
 - [GitHub macOS runner image](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md)：明确选择已提供的 Xcode 26.0.1，避免默认 Xcode 漂移。
 - [Apple notarization tooling](https://developer.apple.com/documentation/technotes/tn3147-migrating-to-the-latest-notarization-tool)：使用 notarytool 与直接 p8 文件参数，不读取钥匙串 profile。
 
-依赖按需升级；升级时同时更新 SDK 校验清单、Package.resolved、第三方声明和相关检查。不增加自动依赖 PR 噪声；只在版本标签上公开安装包。
+依赖按需升级；升级时同时更新 SDK 校验清单、Package.resolved、第三方声明和相关检查。不增加自动依赖 PR 噪声；只在版本标签上签名安装包，稳定标签进入 Releases，dev 标签仅保存 Actions artifacts。
+
+## Dev 通道参考（2026-09-08）
+
+- [VS Code Insiders](https://code.visualstudio.com/insiders/)：持续提供最新改动供开发者使用。本项目采用持续内测通道，但共用原应用身份以延续权限和数据，没有采用其并行安装策略。
+- [Electron release channels](https://releases.electronjs.org/)：区分 nightly、pre-release 和 stable。本项目目前只需要 dev 与 stable；RC 留给未来功能冻结后的候选版本。
+- [GitHub GITHUB_TOKEN 触发规则](https://docs.github.com/en/actions/concepts/security/github_token)：自带 token 创建标签后须显式 workflow_dispatch，避免依赖不会触发的 push，也无需长效 PAT。
+- [Actions artifact retention](https://github.com/actions/upload-artifact/blob/main/README.md)：安装包留在 Actions，dev 保留 90 天；下载说明与恢复方式见 RELEASING.md。
 
 ## 发布前人工审查
 

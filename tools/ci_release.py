@@ -14,6 +14,7 @@ import tempfile
 import zipfile
 from audit_public import ROOT
 from manifest import snapshot, tree, write
+from build_channel import channel
 
 def run(args, **kwargs):
     return subprocess.run([str(x) for x in args], check=True, **kwargs)
@@ -21,8 +22,7 @@ def run(args, **kwargs):
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 
 def validate_tag(tag, version):
-    if not re.fullmatch(r'\d+\.\d+\.\d+', version) or tag != 'v' + version:
-        raise ValueError('Release tag must exactly match Info.plist version')
+    return channel(tag, version)
 
 def validate_archive(path):
     with zipfile.ZipFile(path) as archive:
@@ -69,7 +69,8 @@ def sign(tag, source_commit, input_dir, output):
     from fetch_signer import signer_path
     from release import notarize
     signer = signer_path(False)  # Downloaded and checksum-verified in an earlier step.
-    validate_tag(tag, plistlib.loads((ROOT / 'Info.plist').read_bytes())['CFBundleShortVersionString'])
+    base_version = plistlib.loads((ROOT / 'Info.plist').read_bytes())['CFBundleShortVersionString']
+    selected_channel = channel(tag, base_version, source_commit)
     archive = input_dir / 'unsigned.zip'
     if (input_dir / 'SHA256SUMS').read_text() != sha(archive) + '  unsigned.zip\n':
         raise ValueError('Unsigned payload checksum mismatch')
@@ -89,6 +90,17 @@ def sign(tag, source_commit, input_dir, output):
         if record['files'] != tree(app): raise ValueError('Downloaded assembly differs from build record')
         run(['python3', ROOT / 'tools/audit_public.py', '--artifact', app],
             env={k: v for k, v in os.environ.items() if not k.startswith(('MACOS_', 'NOTARY_'))})
+        info_path = app / 'Contents/Info.plist'
+        info = plistlib.loads(info_path.read_bytes())
+        if info['CFBundleShortVersionString'] != base_version:
+            raise ValueError('Assembly version differs from the source version')
+        if selected_channel == 'dev':
+            # Preserve the numeric Apple version and identity/TCC/session continuity.
+            # Only the distribution copy is stamped; source Info.plist is unchanged.
+            info['CFBundleDisplayName'] = 'Oopz Dev'
+            info['OopzBuildChannel'] = 'dev'
+            info['OopzBuildIdentifier'] = tag[1:]
+            info_path.write_bytes(plistlib.dumps(info))
         config = {}
         for field, variable, filename in [
             ('private_key', 'MACOS_SIGNING_KEY', 'identity.key'),
@@ -152,6 +164,7 @@ def sign(tag, source_commit, input_dir, output):
             run(['ditto', '-c', '-k', '--keepParent', '--norsrc', app, zipped], stdout=log, stderr=log)
         files = {p.name: sha(p) for p in (dmg, zipped)}
         write(output / 'release.json', {'version': version, 'sourceCommit': source_commit,
+              'baseVersion': base_version, 'channel': selected_channel,
               'signing': 'Developer ID', 'notarized': True, 'architectures': ['arm64', 'x86_64'],
               'validation': 'offline checks, signatures, notarization, mounted installer and headless launch',
               'officialWebAcceptance': 'manual', 'files': files})
@@ -159,11 +172,14 @@ def sign(tag, source_commit, input_dir, output):
         (output / 'SHA256SUMS').write_text(''.join(f'{digest}  {name}\n' for name, digest in sorted(files.items())))
         (output / 'RELEASE_NOTES.md').write_text(
             f'# Oopz {version}\n\nmacOS 14+ · Apple Silicon / Intel universal\n\n'
+            + ('Dev 内测构建，不是正式 Release。与正式版共用应用身份及本机数据，请替换安装、不要同时运行。\n\n' if selected_channel == 'dev' else '') +
             '下载 DMG，将 Oopz 拖入 Applications；也可下载 ZIP 解压安装。\n\n'
             '安装包已完成 Developer ID 签名和 Apple 公证。官方图标与提示音原样保留。\n\n'
             '自动检查包含离线回归、双架构签名、公证票据、DMG 挂载和无头启动。'
             '真实首次登录、官方 Web 共享画面和听感属于人工验收范围，自动构建不代表这些项目已经通过。\n\n'
             f'源码提交：`{source_commit}`。完整性校验见 SHA256SUMS。\n')
+        from publish_release import validate
+        validate(output, tag, source_commit, allow_dev=True)
     print('PASS: signed and notarized DMG/ZIP verified; credential files removed')
 
 def main():

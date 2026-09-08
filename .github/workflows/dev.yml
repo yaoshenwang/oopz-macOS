@@ -1,0 +1,27 @@
+name: Dev
+run-name: Dev request · ${{ github.sha }}
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Audit exact source and history before creating the dev tag
+        run: python3 tools/audit_public.py --history
+      - name: Create immutable dev tag and dispatch the shared installer workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/dispatch_dev.py

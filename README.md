@@ -10,6 +10,8 @@ OOPZ 的 macOS 社区客户端，使用 Swift、AppKit / SwiftUI 和 Agora macOS
 
 ## 开发
 
+**[Dev 内测包](https://github.com/yaoshenwang/oopz-macOS/actions/workflows/release.yml)**：main 每次更新自动构建并公证 DMG / ZIP，成功运行的 Artifacts 提供下载，保留 90 天（需登录 GitHub）。dev 包不创建 GitHub Release、不改变正式 Latest。也可手动运行 [Dev workflow](https://github.com/yaoshenwang/oopz-macOS/actions/workflows/dev.yml)。安装时替换现有 Oopz，共用本机数据与权限；不要同时运行两个版本。详见 [Dev 使用与恢复](docs/RELEASING.md#dev-内测通道)。
+
 要求完整 Xcode 26.0.1（Swift 6.2）或经过验证的兼容版本，以及 Python 3.9+。CI 使用 macOS 15 / Xcode 26.0.1；应用部署目标仍是 macOS 14。
 
 ```sh

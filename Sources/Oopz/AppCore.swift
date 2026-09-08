@@ -191,7 +191,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     @MainActor @objc private func showAbout() {
-        let ver = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let ver = Bundle.main.object(forInfoDictionaryKey: "OopzBuildIdentifier") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         let alert = NSAlert()
         alert.messageText = "Oopz for macOS"
         alert.informativeText = """

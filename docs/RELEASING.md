@@ -1,5 +1,30 @@
 # 签名与发布
 
+## Dev 内测通道
+
+持续开发用 dev；beta / RC 适合功能冻结后的候选发布，目前不引入这两种通道。日常 main 更新自动产出 dev 安装包，正式版本仍由维护者明确创建 `vX.Y.Z` 标签。
+
+1. main 更新（或手动运行 Dev workflow）后，先审计该提交及历史，再创建不可变标签 `v<Info.plist 版本>-dev.<run_id>.<attempt>.g<12 位提交>`。
+2. Dev workflow 使用 GitHub 自带的 GITHUB_TOKEN 显式 dispatch 同一份 Release workflow 到该标签。仅创建标签不会触发下一条 workflow，因此不能省略 dispatch；无需新增 PAT。Dev 请求成功只表示已派发，安装包状态以对应 `Installers · v…-dev.…` 运行的结果为准。
+3. 标签提交必须属于 main。无凭据任务运行完整离线检查、universal 构建及 App 审计；签名任务仍只在现有 release environment 的 `v*` 标签范围运行。没有放开分支签名、PR 签名或使用本机钥匙串。
+4. 同一脚本执行 Developer ID 签名、App / DMG Apple 公证、双架构签名验证、DMG 实际挂载验证及无头启动。任何一步失败都不上传安装包，不降级为临时签名。
+5. dev 的 publish 任务跳过，发布脚本也拒绝 dev 标签。安装包保存在 Actions Artifacts，保留 90 天；不会创建 GitHub Release、占用 Latest 或触发正式更新。公共仓库的 artifact 不是私密分发渠道，登录并有仓库读取权限者可以下载。
+
+下载：进入 [安装包运行列表](https://github.com/yaoshenwang/oopz-macOS/actions/workflows/release.yml)，选择成功的 `Installers · v…-dev.…`，在 Summary 下载链接或 Artifacts 中取得 `Oopz-v…-dev.…-universal`。其中仅包含 DMG、ZIP、SHA256SUMS、release.json 与说明；不包含账号、私有日志或验证收据。
+
+```sh
+gh workflow run dev.yml --ref main              # 重建当前 main，无需改版本
+gh run list --workflow release.yml --limit 10   # 找对应 dev 标签的安装包运行
+gh run watch RUN_ID --exit-status              # 等待安装包真正完成
+gh run download RUN_ID --pattern 'Oopz-v*-dev.*-universal' --dir /tmp/oopz-dev-download
+```
+
+下载后在解出的安装包目录执行 `shasum -a 256 -c SHA256SUMS`，退出旧 App，再用 DMG 替换 Applications 中的 Oopz。dev 与 stable 保留相同 bundle ID、URL scheme、数据和权限，不支持并行运行或数据隔离。App 的数值版本仍来自 Info.plist；分发副本的“关于”显示完整 dev 标识，release.json 记录基础版本、通道与完整源码提交。没有自动升级服务，也不承诺未来的数据结构可向旧版回退；当前可手动替换为仍保留的已知可用安装包。
+
+失败恢复：构建或公证失败可重跑安装包 workflow 的失败任务；unsigned 中间产物保留 1 天，过期后重跑全部任务。Dev 请求在创建标签后 dispatch 失败时，可运行 `gh workflow run release.yml --ref EXACT_DEV_TAG`；也可重新运行 Dev 请求（新的 attempt 标签）。artifact 过期后可针对仍存在的原 dev 标签重跑全部任务，得到相同源码的新签名构建；签名、公证时间与安装包哈希可能变化，不保证二进制逐字节复现。不要移动或复用 dev 标签指向其他源码。
+
+稳定 Release 资产继续禁止覆盖。自动化不执行真实麦克风、桌面采集或官方 Web 验收；内测包也必须按 TESTING.md 由用户确认真实使用效果。
+
 ## 自动发布（默认）
 
 修改版本与 CHANGELOG，经过 PR / CI 合入 main，然后推送对应版本标签：

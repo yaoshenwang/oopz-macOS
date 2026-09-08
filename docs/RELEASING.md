@@ -25,6 +25,12 @@ gh run download RUN_ID --pattern 'Oopz-v*-dev.*-universal' --dir /tmp/oopz-dev-d
 
 稳定 Release 资产继续禁止覆盖。自动化不执行真实麦克风、桌面采集或官方 Web 验收；内测包也必须按 TESTING.md 由用户确认真实使用效果。
 
+### GitHub 标签保护配置
+
+首次启用需要区分两条 tag ruleset：原 `v*` 规则排除 `refs/tags/v*-dev.*`，其余标签的创建、更新和删除仍仅维护者可执行；新增 dev 规则匹配 `refs/tags/v*-dev.*`，禁止更新和删除（保留维护者恢复权限）。dev 的创建使用普通仓库写权限，因此 Dev workflow 的 GITHUB_TOKEN 可以创建，但不能改写或删除 dev 标签。拥有仓库写权限的协作者也可以创建 dev 标签；签名任务仍强制检查该提交属于 main。不要给 Actions 整体绕过稳定标签保护，也不要放开 release environment 到分支。
+
+如果创建 dev 标签失败，先确认 ruleset 范围是否仍把 dev 纳入“仅维护者可创建”。不要通过添加长期 PAT 或关闭所有标签保护来修复。
+
 ## 自动发布（默认）
 
 修改版本与 CHANGELOG，经过 PR / CI 合入 main，然后推送对应版本标签：
